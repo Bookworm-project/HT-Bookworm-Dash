@@ -16,7 +16,6 @@ import functools
 bwypy.set_options(database='bookworm4m', endpoint='https://bookworm.htrc.illinois.edu/cgi-bin/dbbindings.py')
 
 app = dash.Dash(url_base_pathname='/app/', csrf_protect=False)
-#app = dash.Dash()
 
 app.css.append_css({
     "external_url" : "https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"
@@ -26,7 +25,8 @@ app.css.append_css({
 
 bw = bwypy.BWQuery(verify_fields=False)
 
-group_options = [{'label': name.replace('_', ' ').title(), 'value': name} for name in bw.fields().name]
+group_options = [{'label': name.replace('_', ' ').title(), 'value': name} for name in 
+                   bw.fields().query("type == 'character'").name]
 
 # This will cache identical calls
 @functools.lru_cache(maxsize=32)
@@ -54,48 +54,42 @@ header = '''
 Select a field and see the raw counts in the Bookworm database
 '''
 
-controls_left = html.Div([
+controls = html.Div([
+        dcc.Markdown(header),
         html.Label("Facet Group"),
         dcc.Dropdown(id='group-dropdown', options=group_options, value='language'),
         html.Label("Number of results to show"),
-        dcc.Slider(id='trim-slider', min=5, max=60, value=20, step=2,
-                   marks={str(n): str(n) for n in range(5, 60, 5)})
-        ],
-        style={'width': '48%', 'display': 'inline-block', 'padding': '10px 5px'})
-
-controls_right = html.Div([
-            html.Label("Ignore unknown values:"),
-            dcc.RadioItems(
-                id='drop-radio',
-                options=[
-                    {'label': u'Yes', 'value': 'drop'},
-                    {'label': u'No', 'value': 'keep'}
-                ],
-                value='drop'
-            ),
-            html.Label("Count by:"),
-            dcc.RadioItems(id='counttype-dropdown', options=[
+        dcc.Slider(id='trim-slider', min=10, max=60, value=20, step=5,
+                   marks={str(n): str(n) for n in range(10, 61, 10)}),
+        html.Label("Ignore unknown values:", style={'padding-top': '15px'}),
+        dcc.RadioItems(
+            id='drop-radio',
+            options=[
+                {'label': u'Yes', 'value': 'drop'},
+                {'label': u'No', 'value': 'keep'}
+            ],
+            value='drop'
+        ),
+        html.Label("Count by:"),
+        dcc.RadioItems(id='counttype-dropdown', options=[
                 {'label': u'# of Texts', 'value': 'TextCount'},
                 {'label': u'# of Words', 'value': 'WordCount'}
             ], value='TextCount')
-        ],
-        style={'width': '48%', 'display': 'inline-block','padding': '10px 5px'})
+    ],
+    className='col-md-3')
 
 app.layout = html.Div([
-    dcc.Markdown(header),
-    html.Div([controls_left, controls_right],
-        style={ 'borderBottom': 'thin lightgrey solid',
-                'backgroundColor': 'rgb(250, 250, 250)',
-                'padding': '10px 10px'}),
-    dcc.Graph(id='example-graph'),
-    html.H2("Data"),
-    html.Div(id='data-table', children=[html.Table()],
-            style={'width': '48%', 'display': 'inline-block','padding': '10px 5px'}),
-    html.Div(id='graph-wrapper',
-             children=[dcc.Graph(id='date-distribution', animate=False)],
-             style={'width': '48%', 'display': 'inline-block',
-                    'padding': '10px 5px', 'vertical-align': 'top'}
-            )
+    
+    html.Div([
+                controls,
+                html.Div([dcc.Graph(id='example-graph')], className='col-md-9')
+            ],
+            className='row'),
+    html.Div([
+                html.Div([html.H2("Data"), html.Table()], id='data-table', className='col-md-5'),
+                html.Div([dcc.Graph(id='date-distribution')], id='graph-wrapper', className='col-md-7')
+             ],
+            className='row')
 
 ], className='container')
 
@@ -159,8 +153,9 @@ def print_hover_data(hoverData, group):
         return {
             'data': data,
             'layout': {
+                'height': 300,
                 'yaxis': {'range': [0, int(df.smoothed.max())+100]},
-                'title': 'Date Distribution for ' + group.replace('_', ' ').title()
+                'title': 'Date Distribution for ' + facet_value.replace('_', ' ').title()
             }
         }
     else:
@@ -173,6 +168,7 @@ def print_hover_data(hoverData, group):
         return {
             'data': data,
             'layout': {
+                'height': 300,
                 'yaxis': {'range': [0, 100000]},
                 'title': 'Select a ' + group.replace('_', ' ') + ' to see date distribution'            }
         }
