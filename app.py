@@ -15,7 +15,8 @@ import functools
 
 bwypy.set_options(database='bookworm4m', endpoint='https://bookworm.htrc.illinois.edu/cgi-bin/dbbindings.py')
 
-app = dash.Dash()
+app = dash.Dash(url_base_pathname='/app/', csrf_protect=False)
+#app = dash.Dash()
 
 app.css.append_css({
     "external_url" : "https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"
@@ -177,4 +178,6 @@ def print_hover_data(hoverData, group):
         }
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    # app.scripts.config.serve_locally = False
+    app.config.supress_callback_exceptions = True
+    app.run_server(debug=True, port=8080, host='0.0.0.0')
