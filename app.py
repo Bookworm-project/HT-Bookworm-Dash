@@ -13,7 +13,7 @@ import pandas as pd
 # For simple memoization
 import functools
 
-bwypy.set_options(database='bookworm4m', endpoint='https://bookworm.htrc.illinois.edu/cgi-bin/dbbindings.py')
+bwypy.set_options(database='Bookworm2016', endpoint='https://bookworm.htrc.illinois.edu/cgi-bin/dbbindings.py')
 
 app = dash.Dash(url_base_pathname='/app/', csrf_protect=False)
 
@@ -31,7 +31,8 @@ group_options = [{'label': name.replace('_', ' ').title(), 'value': name} for na
 # This will cache identical calls
 @functools.lru_cache(maxsize=32)
 def get_results(group):
-    bw.groups = [group]
+    bw.groups = ['*'+group]
+    bw.search_limits = { group + '__id' : {"$lt": 60 } }
     return bw.run()
 
 bw_date = bwypy.BWQuery(verify_fields=False)
@@ -40,7 +41,7 @@ bw_date.counttype = ['TextCount']
 
 @functools.lru_cache(maxsize=32)
 def get_date_distribution(group, facet):
-    bw_date.search_limits = { group: facet}
+    bw_date.search_limits = { group: facet }
     results = bw_date.run()
     df = results.frame(index=False)
     df.date_year = pd.to_numeric(df.date_year)
@@ -101,7 +102,7 @@ app.layout = html.Div([
 def update_figure(group, trim_at, drop_radio, counttype):
     bw.groups = [group]
     results = get_results(group)
-    
+
     df = results.frame(index=False, drop_unknowns=(drop_radio=='drop'))
     df_trimmed = df.head(trim_at)
         
@@ -130,7 +131,6 @@ def update_table(group, drop_radio):
     return html.Table(
         # Header
         [html.Tr([html.Th(col) for col in df.columns])] +
-
         # Body
         [html.Tr([
                     html.Td(df.iloc[i][col]) for col in df.columns
@@ -140,9 +140,9 @@ def update_table(group, drop_radio):
 @app.callback(
     Output('date-distribution', 'figure'),
     [Input('example-graph', 'hoverData'), Input('group-dropdown', 'value')])
-def print_hover_data(hoverData, group):
-    if hoverData:
-        facet_value = hoverData['points'][0]['x']
+def print_hover_data(clickData, group):
+    if clickData:
+        facet_value = clickData['points'][0]['x']
         df = get_date_distribution(group, facet_value)
         data = [
             go.Scatter(
@@ -176,4 +176,4 @@ def print_hover_data(hoverData, group):
 if __name__ == '__main__':
     # app.scripts.config.serve_locally = False
     app.config.supress_callback_exceptions = True
-    app.run_server(debug=True, port=8080, host='0.0.0.0')
+    app.run_server(debug=True, port=8080, threaded=True, host='0.0.0.0')
