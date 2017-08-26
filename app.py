@@ -6,172 +6,50 @@ from dash.dependencies import Input, Output
 
 import plotly
 import plotly.graph_objs as go
-import bwypy
 
 import pandas as pd
 
-# For simple memoization
-import functools
+from common import app, bw
+from tools import load_page
 
-bwypy.set_options(database='Bookworm2016', endpoint='https://bookworm.htrc.illinois.edu/cgi-bin/dbbindings.py')
+page_info = [
+    {"name":"Bar Chart", "slug":"bar", "path":'bar_chart' }
+]
+pages = { page['slug']: load_page(page['path']+'.py') for page in page_info }
 
-app = dash.Dash(url_base_pathname='/app/', csrf_protect=False)
-
-app.css.append_css({
-    "external_url" : "https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"
-})
-
-
-
-bw = bwypy.BWQuery(verify_fields=False)
-
-group_options = [{'label': name.replace('_', ' ').title(), 'value': name} for name in 
-                   bw.fields().query("type == 'character'").name]
-
-# This will cache identical calls
-@functools.lru_cache(maxsize=32)
-def get_results(group):
-    bw.groups = ['*'+group]
-    bw.search_limits = { group + '__id' : {"$lt": 60 } }
-    return bw.run()
-
-bw_date = bwypy.BWQuery(verify_fields=False)
-bw_date.groups = ['date_year']
-bw_date.counttype = ['TextCount']
-
-@functools.lru_cache(maxsize=32)
-def get_date_distribution(group, facet):
-    bw_date.search_limits = { group: facet }
-    results = bw_date.run()
-    df = results.frame(index=False)
-    df.date_year = pd.to_numeric(df.date_year)
-    df2 = df.query('(date_year > 1800) and (date_year < 2016)').sort_values('date_year', ascending=True)
-    df2['smoothed'] = df2.TextCount.rolling(10, 0).mean()
-    return df2
-
-
-header = '''
-# Bookworm Bar Chart
-Select a field and see the raw counts in the Bookworm database
-'''
-
-controls = html.Div([
-        dcc.Markdown(header),
-        html.Label("Facet Group"),
-        dcc.Dropdown(id='group-dropdown', options=group_options, value='language'),
-        html.Label("Number of results to show"),
-        dcc.Slider(id='trim-slider', min=10, max=60, value=20, step=5,
-                   marks={str(n): str(n) for n in range(10, 61, 10)}),
-        html.Label("Ignore unknown values:", style={'padding-top': '15px'}),
-        dcc.RadioItems(
-            id='drop-radio',
-            options=[
-                {'label': u'Yes', 'value': 'drop'},
-                {'label': u'No', 'value': 'keep'}
-            ],
-            value='drop'
-        ),
-        html.Label("Count by:"),
-        dcc.RadioItems(id='counttype-dropdown', options=[
-                {'label': u'# of Texts', 'value': 'TextCount'},
-                {'label': u'# of Words', 'value': 'WordCount'}
-            ], value='TextCount')
-    ],
-    className='col-md-3')
+header_bar = html.Nav(className='navbar navbar-default', children=[
+    html.Div(className='container-fluid', children=[
+            html.Div([dcc.Link("Bookworm Playground", href=app.url_base_pathname, className="navbar-brand")], className="navbar-header"),
+            html.Ul(className="nav navbar-nav", children=[
+                html.Li(dcc.Link(page['name'], href=app.url_base_pathname+page['slug'])) for page in page_info
+                ])
+            ])
+    ])
 
 app.layout = html.Div([
-    
-    html.Div([
-                controls,
-                html.Div([dcc.Graph(id='example-graph')], className='col-md-9')
-            ],
-            className='row'),
-    html.Div([
-                html.Div([html.H2("Data"), html.Table()], id='data-table', className='col-md-5'),
-                html.Div([dcc.Graph(id='date-distribution')], id='graph-wrapper', className='col-md-7')
-             ],
-            className='row')
+        # represents the URL bar, doesn't render anything
+        dcc.Location(id='url', refresh=False),
+        header_bar,
+        html.Div(id='page-content'),
+        html.Hr(),
+        html.P("Footer placeholder")
+])
 
-], className='container')
-
-@app.callback(
-    Output('example-graph', 'figure'),
-    [Input('group-dropdown', 'value'), Input('trim-slider', 'value'),
-     Input('drop-radio', 'value'), Input('counttype-dropdown', 'value')]
-)
-def update_figure(group, trim_at, drop_radio, counttype):
-    bw.groups = [group]
-    results = get_results(group)
-
-    df = results.frame(index=False, drop_unknowns=(drop_radio=='drop'))
-    df_trimmed = df.head(trim_at)
-        
-    data = [
-        go.Bar(
-            x=df_trimmed[group],
-            y=df_trimmed[counttype]
-        )
-    ]
-    
-    return {
-            'data': data,
-            'layout': {
-                'yTitle': counttype,
-                'title': group.replace('_', ' ').title()
-            }
-        }
-
-@app.callback(
-    Output('data-table', 'children'),
-    [Input('group-dropdown', 'value'), Input('drop-radio', 'value')]
-)
-def update_table(group, drop_radio):
-    results = get_results(group)
-    df = results.frame(index=False, drop_unknowns=(drop_radio=='drop'))
-    return html.Table(
-        # Header
-        [html.Tr([html.Th(col) for col in df.columns])] +
-        # Body
-        [html.Tr([
-                    html.Td(df.iloc[i][col]) for col in df.columns
-                ]) for i in range(min(len(df), 100))]
-    )
-
-@app.callback(
-    Output('date-distribution', 'figure'),
-    [Input('example-graph', 'hoverData'), Input('group-dropdown', 'value')])
-def print_hover_data(clickData, group):
-    if clickData:
-        facet_value = clickData['points'][0]['x']
-        df = get_date_distribution(group, facet_value)
-        data = [
-            go.Scatter(
-                x=df['date_year'],
-                y=df['smoothed']
-            )
-        ]
-        return {
-            'data': data,
-            'layout': {
-                'height': 300,
-                'yaxis': {'range': [0, int(df.smoothed.max())+100]},
-                'title': 'Date Distribution for ' + facet_value.replace('_', ' ').title()
-            }
-        }
-    else:
-        data = [
-            go.Scatter(
-                x=list(range(1800, 2016)),
-                y=[0]*(2013-1800)
-            )
-        ]
-        return {
-            'data': data,
-            'layout': {
-                'height': 300,
-                'yaxis': {'range': [0, 100000]},
-                'title': 'Select a ' + group.replace('_', ' ') + ' to see date distribution'            }
-        }
+@app.callback(dash.dependencies.Output('page-content', 'children'),
+              [dash.dependencies.Input('url', 'pathname')])
+def display_page(pathname):
+    try:
+        if not pathname.startswith(app.url_base_pathname):
+            raise Exception('Unknown page')
+        slug = pathname[len(app.url_base_pathname):].strip('/')
+        if slug == '':
+            return pages['bar']
+        elif slug in pages:
+            return pages[slug]
+        else:
+            raise Exception('Unknown page')
+    except:
+        return dcc.Link('No content here. return to app root', href='/app/'),
 
 if __name__ == '__main__':
     # app.scripts.config.serve_locally = False
