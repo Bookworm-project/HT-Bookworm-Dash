@@ -3,17 +3,16 @@ import dash
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output
-
 import plotly
 import plotly.graph_objs as go
-
 import pandas as pd
-
-from common import app, bw
+from common import app
 from tools import load_page
 
 page_info = [
-    {"name":"Bar Chart", "slug":"bar", "path":'bar_chart' }
+    {"name":"Bar Chart", "slug":"bar", "path":'bar_chart' },
+    {"name":"Map Search", "slug":"map", "path":'map' }
+    #{"name":"Word Stats", "slug":"word", "path":'word_stats' }
 ]
 pages = { page['slug']: load_page(page['path']+'.py') for page in page_info }
 
@@ -26,30 +25,35 @@ header_bar = html.Nav(className='navbar navbar-default', children=[
             ])
     ])
 
+footer = '''This is a spin-off of the [HathiTrust+Bookworm Project](https://analytics.hathitrust.org/bookworm).
+            See the main visualization at the [HathiTrust Research Center](https://analytics.hathitrust.org/bookworm).
+            For expert use, there is an [advanced visualization page](https://bookworm.htrc.illinois.edu/advanced).
+            Consult the [API documentation](https://bookworm-project.github.io/Docs/API.html) for more information on the Bookworm query language. Finally, if you're looking for tools for quantitative querying of the API, see the [BookwormPython](https://github.com/organisciak/BookwormPython) library.'''
+
 app.layout = html.Div([
         # represents the URL bar, doesn't render anything
         dcc.Location(id='url', refresh=False),
         header_bar,
         html.Div(id='page-content'),
         html.Hr(),
-        html.P("Footer placeholder")
+        html.Div(dcc.Markdown(footer), className='container')
 ])
 
 @app.callback(dash.dependencies.Output('page-content', 'children'),
               [dash.dependencies.Input('url', 'pathname')])
 def display_page(pathname):
     try:
-        if not pathname.startswith(app.url_base_pathname):
+        pathparts = pathname.strip('/').split('/')
+        if not (pathparts[0] == app.url_base_pathname.strip('/')):
             raise Exception('Unknown page')
-        slug = pathname[len(app.url_base_pathname):].strip('/')
-        if slug == '':
+        if (len(pathparts) == 1):
             return pages['bar']
-        elif slug in pages:
-            return pages[slug]
+        if pathparts[1] in pages:
+            return pages[pathparts[1]]
         else:
             raise Exception('Unknown page')
     except:
-        return dcc.Link('No content here. return to app root', href='/app/'),
+        return dcc.Link('No content here. return to app root', href='/app/')
 
 if __name__ == '__main__':
     # app.scripts.config.serve_locally = False

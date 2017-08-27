@@ -6,9 +6,14 @@ import plotly
 import plotly.graph_objs as go
 import pandas as pd
 import functools
-from common import app, bw
+from common import app
+import bwypy
 
 app.config.supress_callback_exceptions=True
+
+bwypy.set_options(database='Bookworm2016', endpoint='https://bookworm.htrc.illinois.edu/cgi-bin/dbbindings.py')
+bw = bwypy.BWQuery(verify_fields=False)
+bw.counttype = ['WordsPerMillion', 'TextCount']
 
 group_options = [{'label': name.replace('_', ' ').title(), 'value': name} for name in 
                    bw.fields().query("type == 'character'").name]
@@ -67,7 +72,7 @@ app.layout = html.Div([
     
     html.Div([
                 controls,
-                html.Div([dcc.Graph(id='example-graph')], className='col-md-9')
+                html.Div([dcc.Graph(id='bar-chart-main-graph')], className='col-md-9')
             ],
             className='row'),
     html.Div([
@@ -79,7 +84,7 @@ app.layout = html.Div([
 ], className='container')
 
 @app.callback(
-    Output('example-graph', 'figure'),
+    Output('bar-chart-main-graph', 'figure'),
     [Input('group-dropdown', 'value'), Input('trim-slider', 'value'),
      Input('drop-radio', 'value'), Input('counttype-dropdown', 'value')]
 )
@@ -123,7 +128,7 @@ def update_table(group, drop_radio):
 
 @app.callback(
     Output('date-distribution', 'figure'),
-    [Input('example-graph', 'hoverData'), Input('group-dropdown', 'value')])
+    [Input('bar-chart-main-graph', 'hoverData'), Input('group-dropdown', 'value')])
 def print_hover_data(clickData, group):
     if clickData:
         facet_value = clickData['points'][0]['x']

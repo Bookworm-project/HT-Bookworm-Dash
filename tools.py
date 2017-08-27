@@ -1,4 +1,4 @@
-from common import app, bw
+from common import app
 
 def load_page(path):
     with open(path, 'r') as _f:
@@ -23,7 +23,7 @@ def load_page(path):
             'print("Running")\n    # app.run_server'
         )
 
-        scope = {'app': app, 'bw': bw }
+        scope = {'app': app }
         exec(_example, scope)
 
     return scope['layout']
