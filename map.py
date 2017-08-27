@@ -67,13 +67,14 @@ def build_map(word, compare_word=None, type='scattergeo', scope='country'):
         scope = 'usa'
         projection = 'albers usa'
         locationmode = 'USA-states'
-        
+    
+    sizemod = 45
     if compare_word and (compare_word.strip() != ''):
         data = pd.merge(data,data2, on=[field, 'code'])
         if type == 'scattergeo':
             data = data[(data['WordsPerMillion_x'] != 0) & (data['WordsPerMillion_y'] != 0)]
         maxval = data[['WordsPerMillion_x', 'WordsPerMillion_y']].max().max()
-        logcounts = 40*(data['WordsPerMillion_x'].apply(transform) - data['WordsPerMillion_y'].apply(transform))
+        logcounts = sizemod*(data['WordsPerMillion_x'].apply(transform) - data['WordsPerMillion_y'].apply(transform))
         text = ( data[field]
                  + "<br> Words Per Million<br>    '{}': ".format(word) 
                  + data['WordsPerMillion_x'].round(1).astype(str) 
@@ -86,7 +87,7 @@ def build_map(word, compare_word=None, type='scattergeo', scope='country'):
             data = data[(data['WordsPerMillion'] != 0)]
         counts = data['WordsPerMillion'].astype(int)
         maxval = counts.max()
-        logcounts = 40*counts.apply(transform)
+        logcounts = sizemod*counts.apply(transform)
         text = data[field] + '<br> Words Per Million:' + data['WordsPerMillion'].round(2).astype('str')
         title = "\'%s\' Mentions in Library Volumes" % word
         
@@ -146,11 +147,15 @@ app.layout = html.Div([
         html.Div([
                 dcc.Markdown(header),
                 html.Div(
-                    [html.Label("Search For a Term"), dcc.Input(id='search-term', type='text', value='color')],
+                    [html.Label("Search For a Term"),
+                        dcc.Input(id='search-term', type='text', value='color',
+                            style={'color': 'darkorange','font-weight':'bold'})],
                     className="form-group"
                 ),
                 html.Div(
-                    [html.Label("Optional: Compare to another term"), dcc.Input(id='compare-term', type='text', value='')],
+                    [html.Label("Optional: Compare to another term"),
+                        dcc.Input(id='compare-term', type='text', value='',
+                            style={'color': 'navy','font-weight':'bold'})],
                     className="form-group"
                 ),
                 html.Div(
