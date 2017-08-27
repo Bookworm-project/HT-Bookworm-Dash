@@ -19,7 +19,9 @@ bw.counttype = ['WordsPerMillion']
 
 header = '''
 # Bookworm Map
-See where a word occurs in a collection.
+See where a word occurs in the 15 million volume [HathiTrust[(https://www.hathitrust.org) collection.
+
+Locations correspond to the places that volumes were published in.
 '''
 
 country_codes = pd.read_csv('data/country_codes.csv')
