@@ -72,8 +72,8 @@ def build_map(word, compare_word=None, type='scattergeo', scope='country'):
         projection = 'albers usa'
         locationmode = 'USA-states'
     
-    sizemod = 45
     if compare_word and (compare_word.strip() != ''):
+        sizemod = 45
         data = pd.merge(data,data2, on=[field, 'code'])
         if type == 'scattergeo':
             data = data[(data['WordsPerMillion_x'] != 0) & (data['WordsPerMillion_y'] != 0)]
@@ -87,6 +87,7 @@ def build_map(word, compare_word=None, type='scattergeo', scope='country'):
                 )
         title = "\'%s\' vs. '%s' Mentions in Library Volumes" % (word, compare_word)
     else:
+        sizemod = 40
         if type == 'scattergeo':
             data = data[(data['WordsPerMillion'] != 0)]
         counts = data['WordsPerMillion'].astype(int)
