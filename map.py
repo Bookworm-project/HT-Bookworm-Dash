@@ -29,7 +29,9 @@ state_codes = pd.read_csv('data/state_codes_us.csv')
 
 @functools.lru_cache(maxsize=32)
 def get_word_by_us_state(word):
-    bw.search_limits = { 'word':[word], 'publication_country': 'USA' }
+    words = [token.strip() for token in word.split(',')]
+    bw.search_limits = { 'word':word.split(','), 'publication_country': 'USA' }
+    bw.json['words_collation'] = 'case_insensitive'
     bw.groups = ['*publication_country', 'publication_state']
     results = bw.run()
     df = results.frame(index=False, drop_unknowns=True)
@@ -38,7 +40,9 @@ def get_word_by_us_state(word):
 
 @functools.lru_cache(maxsize=32)
 def get_word_by_country(word):
-    bw.search_limits = { 'word':[word] }
+    words = [token.strip() for token in word.split(',')]
+    bw.search_limits = { 'word':words }
+    bw.json['words_collation'] = 'case_insensitive'
     bw.groups = ['publication_country']
     results = bw.run()
     df = results.frame(index=False, drop_unknowns=True)
@@ -148,8 +152,12 @@ app.layout = html.Div([
                 dcc.Markdown(header),
                 html.Div(
                     [html.Label("Search For a Term"),
+                        html.Br(),
                         dcc.Input(id='search-term', type='text', value='color',
-                            style={'color': 'darkorange','font-weight':'bold'})],
+                            style={'color': 'darkorange','font-weight':'bold'}),
+                     html.Br(),
+                        html.Small("Combine search words with a comma. Only single word queries supported."),
+                            ],
                     className="form-group"
                 ),
                 html.Div(
