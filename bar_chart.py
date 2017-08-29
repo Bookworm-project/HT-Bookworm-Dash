@@ -4,6 +4,7 @@ import dash_html_components as html
 from dash.dependencies import Input, Output
 import plotly
 import plotly.graph_objs as go
+from plotly import figure_factory as FF
 import pandas as pd
 import functools
 from common import app
@@ -13,7 +14,6 @@ app.config.supress_callback_exceptions=True
 
 bwypy.set_options(database='Bookworm2016', endpoint='https://bookworm.htrc.illinois.edu/cgi-bin/dbbindings.py')
 bw = bwypy.BWQuery(verify_fields=False)
-bw.counttype = ['WordsPerMillion', 'TextCount']
 
 group_options = [{'label': name.replace('_', ' ').title(), 'value': name} for name in 
                    bw.fields().query("type == 'character'").name]
@@ -21,16 +21,17 @@ group_options = [{'label': name.replace('_', ' ').title(), 'value': name} for na
 # This will cache identical calls
 @functools.lru_cache(maxsize=32)
 def get_results(group):
+    bw.counttype = ['WordCount', 'TextCount']
     bw.groups = ['*'+group]
     bw.search_limits = { group + '__id' : {"$lt": 60 } }
     return bw.run()
 
 bw_date = bwypy.BWQuery(verify_fields=False)
-bw_date.groups = ['date_year']
-bw_date.counttype = ['TextCount']
 
 @functools.lru_cache(maxsize=32)
 def get_date_distribution(group, facet):
+    bw_date.groups = ['date_year']
+    bw_date.counttype = ['TextCount']
     bw_date.search_limits = { group: facet }
     results = bw_date.run()
     df = results.frame(index=False)
@@ -76,7 +77,7 @@ app.layout = html.Div([
             ],
             className='row'),
     html.Div([
-                html.Div([html.H2("Data"), html.Table()], id='data-table', className='col-md-5'),
+                html.Div([html.H2("Data"), dcc.Graph(id='bar-data-table')], id='data-table', className='col-md-5'),
                 html.Div([dcc.Graph(id='date-distribution')], id='graph-wrapper', className='col-md-7')
              ],
             className='row')
@@ -111,20 +112,21 @@ def update_figure(group, trim_at, drop_radio, counttype):
         }
 
 @app.callback(
-    Output('data-table', 'children'),
+    Output('bar-data-table', 'figure'),
     [Input('group-dropdown', 'value'), Input('drop-radio', 'value')]
 )
 def update_table(group, drop_radio):
     results = get_results(group)
     df = results.frame(index=False, drop_unknowns=(drop_radio=='drop'))
-    return html.Table(
+    return FF.create_table(df)
+    #return html.Table(
         # Header
-        [html.Tr([html.Th(col) for col in df.columns])] +
+        #[html.Tr([html.Th(col) for col in df.columns])] +
         # Body
-        [html.Tr([
-                    html.Td(df.iloc[i][col]) for col in df.columns
-                ]) for i in range(min(len(df), 100))]
-    )
+        #[html.Tr([
+        #            html.Td(df.iloc[i][col]) for col in df.columns
+        #        ]) for i in range(min(len(df), 100))]
+    #)
 
 @app.callback(
     Output('date-distribution', 'figure'),
