@@ -11,11 +11,15 @@ from common import app
 import bwypy
 
 app.config.supress_callback_exceptions=True
-#_globals = dict(last=time.time(), term='')
 
 bwypy.set_options(database='Bookworm2016', endpoint='https://bookworm.htrc.illinois.edu/cgi-bin/dbbindings.py')
-bw = bwypy.BWQuery(verify_fields=False)
-bw.counttype = ['WordsPerMillion']
+bw_map = bwypy.BWQuery(verify_fields=False)
+bw_map.counttype = ['WordsPerMillion']
+bw_map.json['words_collation'] = 'case_insensitive'
+
+bw_html = bwypy.BWQuery(verify_fields=False)
+bw_html.json['method'] = 'search_results'
+bw_html.json['words_collation'] = 'case_insensitive'
 
 header = '''
 # Bookworm Map
@@ -30,10 +34,9 @@ state_codes = pd.read_csv('data/state_codes_us.csv')
 @functools.lru_cache(maxsize=32)
 def get_word_by_us_state(word):
     words = [token.strip() for token in word.split(',')]
-    bw.search_limits = { 'word':word.split(','), 'publication_country': 'USA' }
-    bw.json['words_collation'] = 'case_insensitive'
-    bw.groups = ['*publication_country', 'publication_state']
-    results = bw.run()
+    bw_map.search_limits = { 'word':word.split(','), 'publication_country': 'USA' }
+    bw_map.groups = ['*publication_country', 'publication_state']
+    results = bw_map.run()
     df = results.frame(index=False, drop_unknowns=True)
     data = pd.merge(df, state_codes)
     return data
@@ -41,10 +44,9 @@ def get_word_by_us_state(word):
 @functools.lru_cache(maxsize=32)
 def get_word_by_country(word):
     words = [token.strip() for token in word.split(',')]
-    bw.search_limits = { 'word':words }
-    bw.json['words_collation'] = 'case_insensitive'
-    bw.groups = ['publication_country']
-    results = bw.run()
+    bw_map.search_limits = { 'word':words }
+    bw_map.groups = ['publication_country']
+    results = bw_map.run()
     df = results.frame(index=False, drop_unknowns=True)
     data = pd.merge(df, country_codes)
     return data
@@ -85,7 +87,7 @@ def build_map(word, compare_word=None, type='scattergeo', scope='country'):
                  + "<br>    '{}': ".format(compare_word) 
                  + data['WordsPerMillion_y'].round(1).astype(str)
                 )
-        title = "\'%s\' vs. '%s' Mentions in Library Volumes" % (word, compare_word)
+        title = "\'%s\' vs. '%s' in the HathiTrust" % (word, compare_word)
     else:
         sizemod = 40
         if type == 'scattergeo':
@@ -94,7 +96,7 @@ def build_map(word, compare_word=None, type='scattergeo', scope='country'):
         maxval = counts.max()
         logcounts = sizemod*counts.apply(transform)
         text = data[field] + '<br> Words Per Million:' + data['WordsPerMillion'].round(2).astype('str')
-        title = "\'%s\' Mentions in Library Volumes" % word
+        title = "\'%s\' in the HathiTrust" % word
         
     if compare_word:
         counts2 = data2['WordsPerMillion'].astype(int)
@@ -145,7 +147,7 @@ def build_map(word, compare_word=None, type='scattergeo', scope='country'):
     return (plotdata, layout)
 
 # Initial search
-plotdata, layout = build_map('color', None, 'scattergeo', 'country')
+plotdata, layout = build_map('color', 'colour', 'scattergeo', 'country')
 
 app.layout = html.Div([
      html.Div([
@@ -163,7 +165,7 @@ app.layout = html.Div([
                 ),
                 html.Div(
                     [html.Label("Optional: Compare to another term"),
-                        dcc.Input(id='compare-term', type='text', value='',
+                        dcc.Input(id='compare-term', type='text', value='colour',
                             style={'color': 'navy','font-weight':'bold'})],
                     className="form-group"
                 ),
@@ -198,9 +200,45 @@ app.layout = html.Div([
             [dcc.Graph(id='main-map-graph', figure=dict( data=plotdata, layout=layout ), animate=False)],
             className='col-md-9')
     ], className='row'),
-        html.Div([], id='test-path'),
+      html.Div([
+        html.Div([
+            dcc.Markdown("""**Example Books**
+            Choose a place on the map to see matching books from there. All search and compare words included in matches.
+            """),
+            html.Div(id='select-data'),
+        ], className='col-md-offset-4 col-md-8')
+      ], className='row')
     ], className='container')
 
+@app.callback(
+    Output('select-data', 'children'),
+    [Input('main-map-graph', 'clickData')],
+    state=[State('search-term', 'value'), State('compare-term', 'value'),
+           State('map_scope', 'value')])
+def display_click_data(clickData, word, compare_word, mapscope):
+    import json
+    import re
+    try:
+        limit = clickData['points'][0]['text'].split('<br>')[0]
+    except:
+        return html.Ul(html.Li(html.Em("Nothing selected")))
+    if compare_word and compare_word.strip() != '':
+        word = word + "," + compare_word
+    q = word.split(",")
+        
+    bw_html.search_limits = { 'publication_' + mapscope : [limit], 'word': q }
+    results = bw_html.run()
+    
+    # Format results
+    links = []
+    for result in results.json():
+        try:
+            groups = re.search("href=(.*)><em>(.*?)</em> \((.*?)\)", result).groups()
+            link = html.Li(html.A(href=groups[0], target='_blank', children=["%s (%s)" % (groups[1], groups[2])]))
+            links.append(link)
+        except:
+            raise
+    return html.Ul(links)
 
 @app.callback(
     Output('main-map-graph', 'figure'),
@@ -212,11 +250,6 @@ def map_search(word, compare_word, maptype, mapscope):
     plotdata, layout = build_map(word, compare_word, maptype, mapscope)
     fig = dict( data=plotdata, layout=layout )
     return fig
-
-@app.callback(dash.dependencies.Output('test-path', 'children'),
-              [dash.dependencies.Input('url', 'pathname')])
-def display_path(pathname):
-    print(path)
 
 if __name__ == '__main__':
     app.config.supress_callback_exceptions = True
