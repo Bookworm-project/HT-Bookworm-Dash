@@ -51,7 +51,7 @@ def display_page(pathname):
         if not (pathparts[0] == app.url_base_pathname.strip('/')):
             raise Exception('Unknown page')
         if (len(pathparts) == 1):
-            return pages['bar']
+            return pages['map']
         if pathparts[1] in pages:
             return pages[pathparts[1]]
         else:
