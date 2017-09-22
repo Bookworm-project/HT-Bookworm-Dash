@@ -8,7 +8,9 @@ import plotly.graph_objs as go
 import pandas as pd
 import functools
 from common import app
+from common import graphconfig
 import bwypy
+import json
 
 app.config.supress_callback_exceptions=True
 
@@ -20,6 +22,15 @@ bw_map.json['words_collation'] = 'case_insensitive'
 bw_html = bwypy.BWQuery(verify_fields=False)
 bw_html.json['method'] = 'search_results'
 bw_html.json['words_collation'] = 'case_insensitive'
+
+keys = ['word', 'compare_word', 'type', 'scope']
+defaults = ['color', 'colour', 'scattergeo', 'country']
+# Future support for pre-load param insertion
+params = None
+if params is not None:
+    q = dict(zip(keys,params))
+else:
+    q = dict(zip(keys,defaults))
 
 header = '''
 # Bookworm Map
@@ -146,9 +157,6 @@ def build_map(word, compare_word=None, type='scattergeo', scope='country'):
             )
     return (plotdata, layout)
 
-# Initial search
-plotdata, layout = build_map('color', 'colour', 'scattergeo', 'country')
-
 app.layout = html.Div([
      html.Div([
         html.Div([
@@ -156,8 +164,10 @@ app.layout = html.Div([
                 html.Div(
                     [html.Label("Search For a Term"),
                         html.Br(),
-                        dcc.Input(id='search-term', type='text', value='color',
+                        dcc.Input(id='search-term', type='text', value=q['word'],
                             style={'color': 'darkorange','font-weight':'bold'}),
+                     dcc.Input(id='map-search-term-hidden', type='hidden',
+                               value=json.dumps(dict(word=q['word'], compare=q['compare_word']))),
                      html.Br(),
                         html.Small("Combine search words with a comma. Only single word queries supported."),
                             ],
@@ -165,10 +175,11 @@ app.layout = html.Div([
                 ),
                 html.Div(
                     [html.Label("Optional: Compare to another term"),
-                        dcc.Input(id='compare-term', type='text', value='colour',
+                        dcc.Input(id='compare-term', type='text', value=q['compare_word'],
                             style={'color': 'navy','font-weight':'bold'})],
                     className="form-group"
                 ),
+                html.Button('Update Words', id='word_search_button', className='btn btn-primary'),
                 html.Div(
                     [html.Label("Type of Map"),
                      html.Div(dcc.RadioItems(
@@ -177,7 +188,7 @@ app.layout = html.Div([
                             {'label': u'Scatter', 'value': 'scattergeo'},
                             {'label': u'Color', 'value': 'choropleth'}
                         ],
-                        value='scattergeo'
+                        value=q['type']
                     ), className='radio')],
                     className="form-group"
                 ),
@@ -189,15 +200,14 @@ app.layout = html.Div([
                             {'label': u'World', 'value': 'country'},
                             {'label': u'USA', 'value': 'state'}
                         ],
-                        value='country'
+                        value=q['scope']
                     ), className='radio')],
                     className="form-group"
-                ),
-                html.Button('Search', id='word_search_button')
+                )
             ],
             className='col-md-3'),
         html.Div(
-            [dcc.Graph(id='main-map-graph', figure=dict( data=plotdata, layout=layout ), animate=False)],
+            [dcc.Graph(id='main-map-graph', animate=False, config=graphconfig)],
             className='col-md-9')
     ], className='row'),
       html.Div([
@@ -208,7 +218,7 @@ app.layout = html.Div([
             html.Div(id='select-data'),
         ], className='col-md-offset-4 col-md-8')
       ], className='row')
-    ], className='container')
+    ], className='container-fluid')
 
 @app.callback(
     Output('select-data', 'children'),
@@ -241,12 +251,22 @@ def display_click_data(clickData, word, compare_word, mapscope):
     return html.Ul(links)
 
 @app.callback(
-    Output('main-map-graph', 'figure'),
+    Output('map-search-term-hidden', 'value'),
     events=[Event('word_search_button', 'click')],
-    state=[State('search-term', 'value'), State('compare-term', 'value'),
-           State('map_type', 'value'), State('map_scope', 'value')]
+    state=[State('search-term', 'value'), State('compare-term', 'value')]
 )
-def map_search(word, compare_word, maptype, mapscope):
+def update_hidden_search_term(word, compare):
+    return json.dumps(dict(word=word, compare=compare))
+
+@app.callback(
+    Output('main-map-graph', 'figure'),
+    [Input('map-search-term-hidden', 'value'),
+           Input('map_type', 'value'), Input('map_scope', 'value')]
+)
+def map_search(word_query, maptype, mapscope):
+    word_query=json.loads(word_query)
+    word = word_query['word']
+    compare_word = word_query['compare']
     plotdata, layout = build_map(word, compare_word, maptype, mapscope)
     fig = dict( data=plotdata, layout=layout )
     return fig

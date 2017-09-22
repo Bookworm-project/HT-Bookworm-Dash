@@ -8,6 +8,8 @@ from plotly import figure_factory as FF
 import pandas as pd
 import functools
 from common import app
+from common import graphconfig
+from tools import get_facet_group_options
 import bwypy
 
 app.config.supress_callback_exceptions=True
@@ -15,8 +17,7 @@ app.config.supress_callback_exceptions=True
 bwypy.set_options(database='Bookworm2016', endpoint='https://bookworm.htrc.illinois.edu/cgi-bin/dbbindings.py')
 bw = bwypy.BWQuery(verify_fields=False)
 
-group_options = [{'label': name.replace('_', ' ').title(), 'value': name} for name in 
-                   bw.fields().query("type == 'character'").name]
+facet_opts = get_facet_group_options(bw)
 
 # This will cache identical calls
 @functools.lru_cache(maxsize=32)
@@ -48,7 +49,7 @@ Select a field and see the raw counts in the Bookworm database
 controls = html.Div([
         dcc.Markdown(header),
         html.Label("Facet Group"),
-        dcc.Dropdown(id='group-dropdown', options=group_options, value='language'),
+        dcc.Dropdown(id='group-dropdown', options=facet_opts, value='language'),
         html.Label("Number of results to show"),
         dcc.Slider(id='trim-slider', min=10, max=60, value=20, step=5,
                    marks={str(n): str(n) for n in range(10, 61, 10)}),
@@ -73,7 +74,7 @@ app.layout = html.Div([
     
     html.Div([
                 controls,
-                html.Div([dcc.Graph(id='bar-chart-main-graph')], className='col-md-9')
+                html.Div([dcc.Graph(id='bar-chart-main-graph', config=graphconfig)], className='col-md-9')
             ],
             className='row'),
     html.Div([
@@ -82,7 +83,7 @@ app.layout = html.Div([
              ],
             className='row')
 
-], className='container')
+], className='container-fluid')
 
 @app.callback(
     Output('bar-chart-main-graph', 'figure'),
