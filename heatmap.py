@@ -14,7 +14,12 @@ import numpy as np
 import pandas as pd
 import itertools
 import json
-from tools import get_facet_group_options, pretty_facet
+from tools import get_facet_group_options, pretty_facet, errorfig, logging_config
+import logging
+from logging.config import dictConfig
+
+dictConfig(logging_config)
+logger = logging.getLogger()
 
 app.config.supress_callback_exceptions=True
 
@@ -148,7 +153,7 @@ app.layout = html.Div([
       html.Div([
         html.Div([
             dcc.Markdown("""**Example Books**
-            Choose a place on the heatmap to see matching books from there. All search and compare words included in matches.
+            Choose a place on the heatmap to see matching books.
             """),
             html.Div(id='heatmap-select-data'),
         ], className='col-md-offset-4 col-md-8')
@@ -231,18 +236,23 @@ def update_hidden_search_term(n_clicks, word, compare):
            Input('year-slider', "value")]
 )
 def heatmap_search(word_query, facet, facet_query, years):
-    word_query=json.loads(word_query)
-    word = word_query['word']
-    compare_word = word_query['compare']
-    max_facet_values = 30
-    
-    # Display params
-    log = True
-    smoothing = 10
-    df = get_heatmap_values(word, facet, max_facet_values,
-                            hard_min_year=hard_min_year, hard_max_year=hard_max_year)
-    plotdata, layout = format_heatmap_data(df, word, log, smoothing, years[0], years[1], tuple(facet_query))
-    fig = dict( data=plotdata, layout=layout )
+    try:
+        word_query=json.loads(word_query)
+        word = word_query['word']
+        compare_word = word_query['compare']
+        max_facet_values = 30
+
+        # Display params
+        log = True
+        smoothing = 10
+        df = get_heatmap_values(word, facet, max_facet_values,
+                                hard_min_year=hard_min_year, hard_max_year=hard_max_year)
+        plotdata, layout = format_heatmap_data(df, word, log, smoothing, years[0], years[1], tuple(facet_query))
+        fig = dict( data=plotdata, layout=layout )
+    except:
+        logging.exception(json.dumps(dict(page='heatmap', word_query=word_query, facet=facet,
+                                      facet_query=facet_query, years=years)))
+        fig = errorfig()
     return fig
 
 if __name__ == '__main__':

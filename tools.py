@@ -1,6 +1,29 @@
 from common import app
 import dash_html_components as html
 import dash_core_components as dcc
+import plotly.graph_objs as go
+import logging
+
+logging_config = dict(
+    version = 1,
+    formatters = {
+        'f': {'format':
+              '%(asctime)s %(name)-12s %(levelname)-8s %(message)s'}
+        },
+    handlers = {
+        'stream': {'class': 'logging.StreamHandler',
+              'formatter': 'f',
+              'level': logging.ERROR},
+        'file': {'class': 'logging.FileHandler',
+                 'filename': 'playground.log',
+              'formatter': 'f',
+              'level': logging.DEBUG}
+        },
+    root = {
+        'handlers': ['stream', 'file'],
+        'level': logging.DEBUG,
+        },
+)
 
 def load_page(path):
     with open(path, 'r') as _f:
@@ -38,3 +61,14 @@ def get_facet_group_options(bw):
     options = [{'label': pretty_facet(name), 'value': name} for name in 
                   bw.fields().query("type == 'character'").name]
     return options
+
+def errorfig(txt='There was an error! We\'ve logged it and will try to fix it. Try something else!'): 
+    data = [go.Heatmap(z=[0], x=[0], y=[['']], showscale=False )]
+    layout = go.Layout(
+        annotations = go.Annotations([
+            go.Annotation(x=0, y=2,showarrow=False,
+                text=txt
+            ) ])
+    )
+    fig = go.Figure(data=data, layout=layout)
+    return fig
