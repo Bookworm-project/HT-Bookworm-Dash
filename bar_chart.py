@@ -93,6 +93,7 @@ app.layout = html.Div([
 def update_figure(group, trim_at, drop_radio, counttype):
     bw.groups = [group]
     results = get_results(group)
+    results = results.copy()
 
     df = results.frame(index=False, drop_unknowns=(drop_radio=='drop'))
     df_trimmed = df.head(trim_at)
@@ -118,6 +119,7 @@ def update_figure(group, trim_at, drop_radio, counttype):
 )
 def update_table(group, drop_radio):
     results = get_results(group)
+    results = get_results.copy()
     df = results.frame(index=False, drop_unknowns=(drop_radio=='drop'))
     return FF.create_table(df)
     #return html.Table(
@@ -136,6 +138,7 @@ def print_hover_data(clickData, group):
     if clickData:
         facet_value = clickData['points'][0]['x']
         df = get_date_distribution(group, facet_value)
+        df = df.copy()
         data = [
             go.Scatter(
                 x=df['date_year'],

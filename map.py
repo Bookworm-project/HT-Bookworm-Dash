@@ -69,17 +69,17 @@ def build_map(word, compare_word=None, type='scattergeo', scope='country'):
     transform = lambda x: np.log(1+x/maxval)
     
     if scope == 'country':
-        data = get_word_by_country(word)
+        data = get_word_by_country(word).copy()
         if compare_word:
-            data2 = get_word_by_country(compare_word)
+            data2 = get_word_by_country(compare_word).copy()
         field = 'publication_country'
         scope = 'world'
         projection = 'Mercator'
         locationmode = 'ISO-3'
     elif scope == 'state':
-        data = get_word_by_us_state(word)
+        data = get_word_by_us_state(word).copy()
         if compare_word:
-            data2 = get_word_by_us_state(compare_word)
+            data2 = get_word_by_us_state(compare_word).copy()
         field = 'publication_state'
         scope = 'usa'
         projection = 'albers usa'

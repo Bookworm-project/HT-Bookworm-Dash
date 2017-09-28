@@ -247,6 +247,8 @@ def heatmap_search(word_query, facet, facet_query, years):
         smoothing = 10
         df = get_heatmap_values(word, facet, max_facet_values,
                                 hard_min_year=hard_min_year, hard_max_year=hard_max_year)
+        # Important, break reference to cached version
+        df = df.copy()
         plotdata, layout = format_heatmap_data(df, word, log, smoothing, years[0], years[1], tuple(facet_query))
         fig = dict( data=plotdata, layout=layout )
     except:
