@@ -11,6 +11,12 @@ from common import app
 from common import graphconfig
 import bwypy
 import json
+from tools import errorfig, logging_config
+import logging
+from logging.config import dictConfig
+
+dictConfig(logging_config)
+logger = logging.getLogger()
 
 app.config.supress_callback_exceptions=True
 
@@ -264,11 +270,16 @@ def update_hidden_search_term(word, compare):
            Input('map_type', 'value'), Input('map_scope', 'value')]
 )
 def map_search(word_query, maptype, mapscope):
-    word_query=json.loads(word_query)
-    word = word_query['word']
-    compare_word = word_query['compare']
-    plotdata, layout = build_map(word, compare_word, maptype, mapscope)
-    fig = dict( data=plotdata, layout=layout )
+    try:
+        word_query=json.loads(word_query)
+        word = word_query['word']
+        compare_word = word_query['compare']
+        plotdata, layout = build_map(word, compare_word, maptype, mapscope)
+        fig = dict( data=plotdata, layout=layout )
+    except:
+        logging.exception(json.dumps(dict(page='map', word_query=word_query,
+                                          maptype=maptype, mapscope=mapscope)))
+        fig = errorfig()
     return fig
 
 if __name__ == '__main__':
