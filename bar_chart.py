@@ -93,9 +93,9 @@ app.layout = html.Div([
 def update_figure(group, trim_at, drop_radio, counttype):
     bw.groups = [group]
     results = get_results(group)
-    results = results.copy()
 
     df = results.frame(index=False, drop_unknowns=(drop_radio=='drop'))
+    df = df.copy()
     df_trimmed = df.head(trim_at)
         
     data = [
@@ -119,8 +119,8 @@ def update_figure(group, trim_at, drop_radio, counttype):
 )
 def update_table(group, drop_radio):
     results = get_results(group)
-    results = get_results.copy()
     df = results.frame(index=False, drop_unknowns=(drop_radio=='drop'))
+    df = df.copy()
     return FF.create_table(df)
     #return html.Table(
         # Header

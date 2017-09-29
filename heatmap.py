@@ -62,7 +62,7 @@ def format_heatmap_data(data, word, log, smoothing, soft_min_year, soft_max_year
     facet = data.columns.values[0]
     if log:
         data.WordsPerMillion = data.WordsPerMillion.add(1).apply(np.log)
-    if facet_query is not None:
+    if (facet_query is not None) and (len(facet_query) != 0):
         data = data[data[facet].isin(list(facet_query))]
     years = pd.Series(range(soft_min_year,soft_max_year))
     fullyears = pd.Series(range(data.date_year.min(),data.date_year.max()))
@@ -249,6 +249,8 @@ def heatmap_search(word_query, facet, facet_query, years):
                                 hard_min_year=hard_min_year, hard_max_year=hard_max_year)
         # Important, break reference to cached version
         df = df.copy()
+        if not facet_query:
+            facet_query = []
         plotdata, layout = format_heatmap_data(df, word, log, smoothing, years[0], years[1], tuple(facet_query))
         fig = dict( data=plotdata, layout=layout )
     except:
