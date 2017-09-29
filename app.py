@@ -10,6 +10,8 @@ from common import app
 from tools import load_page
 import json
 
+server = app.server
+
 page_info = [
     {"name":"Bar Chart", "slug":"bar", "path":'bar_chart' },
     {"name":"Map Search", "slug":"map", "path":'map' },
@@ -76,5 +78,6 @@ def display_page(pathname):
 
 if __name__ == '__main__':
     # app.scripts.config.serve_locally = False
+    
     app.config.supress_callback_exceptions = True
     app.run_server(debug=False, port=8080, threaded=True, host='0.0.0.0')
